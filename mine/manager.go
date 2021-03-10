@@ -7,26 +7,27 @@ import (
 )
 
 type MineManager struct {
-	Cloud      cloud.Cloud
+	cloud      cloud.Cloud
 	sshUser    string
 	sshPort    int
 	sshKeyPath string
+	ipID       string
+	ipKeeperID string
 }
 
-type MineInstance interface {
-}
-
-func NewManager(cloud cloud.Cloud, sshUser string, sshPort int, sshKeyPath string) (MineManager, error) {
+func NewManager(cloud cloud.Cloud, sshUser string, sshPort int, sshKeyPath string, ipID string, ipKeeperID string) (MineManager, error) {
 	return MineManager{
-		Cloud:      cloud,
+		cloud:      cloud,
 		sshUser:    sshUser,
 		sshPort:    sshPort,
 		sshKeyPath: sshKeyPath,
+		ipID:       ipID,
+		ipKeeperID: ipKeeperID,
 	}, nil
 }
 
 func (m MineManager) GetMines() ([]Mine, error) {
-	instances, err := m.Cloud.GetInstances()
+	instances, err := m.cloud.GetInstances()
 	if err != nil {
 		return []Mine{}, err
 	}
@@ -74,7 +75,7 @@ func (m MineManager) GetMine(mineId string) (Mine, error) {
 }
 
 func (m MineManager) CreateMine(imageId string, keyName string, secGroups string) (Mine, error) {
-	i, err := m.Cloud.CreateInstance(imageId, keyName, secGroups)
+	i, err := m.cloud.CreateInstance(imageId, keyName, secGroups)
 	if err != nil {
 		return Mine{}, err
 	}
@@ -87,4 +88,21 @@ func (m MineManager) CreateMine(imageId string, keyName string, secGroups string
 		SSHPort:         m.sshPort,
 		SSHKeyPath:      m.sshKeyPath,
 	}, err
+}
+
+func (m MineManager) GetAddresses() {
+	m.cloud.GetAddresses()
+}
+
+func (m MineManager) Terminate(mineID string) error {
+	return m.cloud.Terminate(mineID)
+}
+
+func (m *MineManager) AssignElasticIP(mineID string) error {
+	return m.cloud.AssignIP(m.ipID, mineID)
+}
+
+// Switch ElasticIP to dummy instance(free). ElasticIP are chareged if not associated with instance
+func (m MineManager) ReleaseElasticIP() error {
+	return m.cloud.AssignIP(m.ipID, m.ipKeeperID)
 }

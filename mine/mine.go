@@ -68,7 +68,6 @@ func (m *Mine) Setup() error {
 }
 
 func (m *Mine) Backup() error {
-	log.Println("Backup instance")
 	client, err := sshClient(m)
 	if err != nil {
 		return err

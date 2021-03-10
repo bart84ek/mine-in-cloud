@@ -2,6 +2,8 @@ package cloud
 
 import (
 	"context"
+	"fmt"
+	"log"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -109,4 +111,38 @@ func (c AWSCloud) CreateInstance(imageId string, keyName string, secGroup string
 		State:         string(newInstance.State.Name),
 		Tags:          tags,
 	}, nil
+}
+
+func (c AWSCloud) GetAddresses() {
+	result, err := c.ec2.DescribeAddresses(c.ctx, &ec2.DescribeAddressesInput{})
+	if err != nil {
+		log.Println("err", err)
+	}
+	if len(result.Addresses) == 0 {
+		log.Printf("No elastic IPs for region\n")
+	} else {
+		log.Println("Elastic IPs")
+		for _, addr := range result.Addresses {
+			log.Println("*", *addr.PublicIp, *addr.InstanceId, *addr.AllocationId)
+		}
+	}
+}
+
+func (c AWSCloud) Terminate(instanceID string) error {
+	_, err := c.ec2.TerminateInstances(c.ctx, &ec2.TerminateInstancesInput{
+		InstanceIds: []string{instanceID},
+	})
+	return err
+}
+
+func (c AWSCloud) AssignIP(allocationID string, instanceID string) error {
+	_, err := c.ec2.AssociateAddress(c.ctx, &ec2.AssociateAddressInput{
+		AllocationId: &allocationID,
+		InstanceId:   &instanceID,
+	})
+	if err != nil {
+		return fmt.Errorf("Unable to associate IP address with %s, %v",
+			instanceID, err)
+	}
+	return nil
 }
