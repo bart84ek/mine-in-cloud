@@ -1,43 +1,27 @@
 package mine
 
 import (
-	"log"
+	"fmt"
 
 	"b4rt.io/aws-mine-manager/cloud"
-	ssh "github.com/helloyi/go-sshclient"
 )
 
 type MineManager struct {
-	Cloud cloud.Cloud
+	Cloud      cloud.Cloud
+	sshUser    string
+	sshPort    int
+	sshKeyPath string
 }
 
 type MineInstance interface {
 }
 
-type Mine struct {
-	Id              string
-	PublicIpAddress string
-	State           string
-}
-
-func (m *Mine) Connect() {
-	client, err := ssh.DialWithKey(m.PublicIpAddress+":22", "ubuntu", "/Users/bart/poligon/aws/keys/awsJumbox.pem")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer client.Close()
-
-	out, err := client.Cmd("pwd; ls -la ;docker -v").Output()
-	if err != nil {
-		log.Fatal(err)
-	}
-	log.Println(string(out))
-}
-
-func NewManager(cloud cloud.Cloud) (MineManager, error) {
-	log.Println("Create mine manager")
+func NewManager(cloud cloud.Cloud, sshUser string, sshPort int, sshKeyPath string) (MineManager, error) {
 	return MineManager{
-		Cloud: cloud,
+		Cloud:      cloud,
+		sshUser:    sshUser,
+		sshPort:    sshPort,
+		sshKeyPath: sshKeyPath,
 	}, nil
 }
 
@@ -49,7 +33,7 @@ func (m MineManager) GetMines() ([]Mine, error) {
 
 	var mines []Mine
 	for _, i := range instances {
-		if i.State == "terminated" {
+		if i.State == "terminated" || i.State == "shutting-down" {
 			continue
 		}
 
@@ -68,12 +52,39 @@ func (m MineManager) GetMines() ([]Mine, error) {
 			Id:              i.Id,
 			PublicIpAddress: i.PublicIP,
 			State:           i.State,
+			SSHUsername:     m.sshUser,
+			SSHPort:         m.sshPort,
+			SSHKeyPath:      m.sshKeyPath,
 		})
 	}
 	return mines, nil
 }
 
-func (m MineManager) CreateMine(imageId string, keyName string, secGroups string) {
-	log.Println("create new mine")
-	m.Cloud.CreateInstance(imageId, keyName, secGroups)
+func (m MineManager) GetMine(mineId string) (Mine, error) {
+	mines, err := m.GetMines()
+	if err != nil {
+		return Mine{}, err
+	}
+	for _, mine := range mines {
+		if mine.Id == mineId {
+			return mine, nil
+		}
+	}
+	return Mine{}, fmt.Errorf("Mine with id:%s not found", mineId)
+}
+
+func (m MineManager) CreateMine(imageId string, keyName string, secGroups string) (Mine, error) {
+	i, err := m.Cloud.CreateInstance(imageId, keyName, secGroups)
+	if err != nil {
+		return Mine{}, err
+	}
+
+	return Mine{
+		Id:              i.Id,
+		PublicIpAddress: i.PublicIP,
+		State:           i.State,
+		SSHUsername:     m.sshUser,
+		SSHPort:         m.sshPort,
+		SSHKeyPath:      m.sshKeyPath,
+	}, err
 }

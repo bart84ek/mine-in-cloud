@@ -2,6 +2,7 @@ package cloud
 
 import (
 	"context"
+
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
@@ -14,7 +15,7 @@ type AWSCloud struct {
 	ctx    context.Context
 }
 
-func NewAWS() (AWSCloud, error) {
+func AWS() (AWSCloud, error) {
 	ctx := context.TODO()
 	cfg, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
@@ -62,11 +63,11 @@ func (c AWSCloud) GetInstances() ([]Instance, error) {
 
 func (c AWSCloud) CreateInstance(imageId string, keyName string, secGroup string) (Instance, error) {
 	result, err := c.ec2.RunInstances(c.ctx, &ec2.RunInstancesInput{
-		ImageId:      &imageId,
-		MinCount:     1,
-		MaxCount:     1,
-		InstanceType: types.InstanceTypeT2Micro,
-		// InstanceType:   types.InstanceTypeT2Medium,
+		ImageId:  &imageId,
+		MinCount: 1,
+		MaxCount: 1,
+		// InstanceType: types.InstanceTypeT2Micro,
+		InstanceType:   types.InstanceTypeT2Medium,
 		KeyName:        &keyName,
 		SecurityGroups: []string{secGroup},
 	})
@@ -91,5 +92,21 @@ func (c AWSCloud) CreateInstance(imageId string, keyName string, secGroup string
 		return Instance{}, err
 	}
 
-	return Instance{Id: *result.Instances[0].InstanceId}, nil
+	newInstance := result.Instances[0]
+
+	tags := make(map[string]string)
+	tags["mine-node"] = "true"
+
+	publicIP := "0.0.0.0"
+	if newInstance.PublicIpAddress != nil {
+		publicIP = *newInstance.PublicIpAddress
+	}
+
+	return Instance{
+		Id:            *newInstance.InstanceId,
+		ReservationId: *result.ReservationId,
+		PublicIP:      publicIP,
+		State:         string(newInstance.State.Name),
+		Tags:          tags,
+	}, nil
 }
