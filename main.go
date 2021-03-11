@@ -45,7 +45,7 @@ func showUsage() {
 	for k := range commands {
 		keys = append(keys, k)
 	}
-	log.Printf("Usage: %s", strings.Join(keys, "|"))
+	log.Printf("Usage: %s", strings.Join(keys, " | "))
 }
 
 func listCmd(cfg config.Config) {

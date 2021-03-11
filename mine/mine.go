@@ -49,7 +49,7 @@ func (m *Mine) Setup() error {
 		return err
 	}
 
-	log.Println("Running setup commands.")
+	log.Println("Running setup scripts.")
 	client, err := sshClient(m)
 	if err != nil {
 		return err
