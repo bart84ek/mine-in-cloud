@@ -5,5 +5,6 @@ type Cloud interface {
 	CreateInstance(string, string, string) (Instance, error)
 	GetAddresses()
 	Terminate(string) error
-	AssignIP(string, string) error
+	AssignIPToInstance(string, string) error
+	AssignIPToNetInterface(string, string) error
 }

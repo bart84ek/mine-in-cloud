@@ -7,22 +7,26 @@ import (
 )
 
 type MineManager struct {
-	cloud      cloud.Cloud
-	sshUser    string
-	sshPort    int
-	sshKeyPath string
-	ipID       string
-	ipKeeperID string
+	cloud                     cloud.Cloud
+	sshUser                   string
+	sshPort                   int
+	sshKeyPath                string
+	ipID                      string
+	ipReleaseToNetInterfaceID string
 }
 
-func NewManager(cloud cloud.Cloud, sshUser string, sshPort int, sshKeyPath string, ipID string, ipKeeperID string) (MineManager, error) {
+func NewManager(
+	cloud cloud.Cloud,
+	sshUser string, sshPort int, sshKeyPath string,
+	ipID string, ipReleaseNetIntID string,
+) (MineManager, error) {
 	return MineManager{
-		cloud:      cloud,
-		sshUser:    sshUser,
-		sshPort:    sshPort,
-		sshKeyPath: sshKeyPath,
-		ipID:       ipID,
-		ipKeeperID: ipKeeperID,
+		cloud:                     cloud,
+		sshUser:                   sshUser,
+		sshPort:                   sshPort,
+		sshKeyPath:                sshKeyPath,
+		ipID:                      ipID,
+		ipReleaseToNetInterfaceID: ipReleaseNetIntID,
 	}, nil
 }
 
@@ -99,10 +103,10 @@ func (m MineManager) Terminate(mineID string) error {
 }
 
 func (m *MineManager) AssignElasticIP(mineID string) error {
-	return m.cloud.AssignIP(m.ipID, mineID)
+	return m.cloud.AssignIPToInstance(m.ipID, mineID)
 }
 
 // Switch ElasticIP to dummy instance(free). ElasticIP are chareged if not associated with instance
 func (m MineManager) ReleaseElasticIP() error {
-	return m.cloud.AssignIP(m.ipID, m.ipKeeperID)
+	return m.cloud.AssignIPToNetInterface(m.ipID, m.ipReleaseToNetInterfaceID)
 }

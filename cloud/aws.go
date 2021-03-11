@@ -135,7 +135,7 @@ func (c AWSCloud) Terminate(instanceID string) error {
 	return err
 }
 
-func (c AWSCloud) AssignIP(allocationID string, instanceID string) error {
+func (c AWSCloud) AssignIPToInstance(allocationID string, instanceID string) error {
 	_, err := c.ec2.AssociateAddress(c.ctx, &ec2.AssociateAddressInput{
 		AllocationId: &allocationID,
 		InstanceId:   &instanceID,
@@ -143,6 +143,18 @@ func (c AWSCloud) AssignIP(allocationID string, instanceID string) error {
 	if err != nil {
 		return fmt.Errorf("Unable to associate IP address with %s, %v",
 			instanceID, err)
+	}
+	return nil
+}
+
+func (c AWSCloud) AssignIPToNetInterface(allocationID string, netInterfaceID string) error {
+	_, err := c.ec2.AssociateAddress(c.ctx, &ec2.AssociateAddressInput{
+		AllocationId:       &allocationID,
+		NetworkInterfaceId: &netInterfaceID,
+	})
+	if err != nil {
+		return fmt.Errorf("Unable to associate IP address with network interface %s, %v",
+			netInterfaceID, err)
 	}
 	return nil
 }

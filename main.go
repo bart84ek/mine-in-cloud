@@ -15,8 +15,9 @@ import (
 var commands = map[string]func(config.Config){
 	"list":    listCmd,
 	"list-ip": listAddressesCmd,
-	"create":  createMineCmd,
+	"start":   createMineCmd,
 	"stop":    stopMineCmd,
+	"players": listPlayers,
 }
 
 func main() {
@@ -65,6 +66,30 @@ func listCmd(cfg config.Config) {
 	}
 }
 
+func listPlayers(cfg config.Config) {
+	mineMgr, err := getMineManager(cfg)
+	if err != nil {
+		log.Fatal("mine manager error", err.Error())
+	}
+
+	mines, err := mineMgr.GetMines()
+	if err != nil {
+		log.Fatal("error fetching mines list ", err.Error())
+	}
+
+	if len(mines) < 1 {
+		log.Fatal("No mine found")
+	}
+
+	mine := mines[0]
+
+	log.Println("Players minecraft server")
+	err = mine.Players()
+	if err != nil {
+		log.Fatal("Warning. Can't fetch list of players. Minecraft Server running?")
+	}
+}
+
 func listAddressesCmd(cfg config.Config) {
 	mineMgr, err := getMineManager(cfg)
 	if err != nil {
@@ -80,12 +105,12 @@ func createMineCmd(cfg config.Config) {
 	}
 
 	log.Println("Creating new mine")
-	mine, err := mineMgr.CreateMine(cfg.AWSImageId, cfg.AWSKeyName, cfg.AWSSecurityGroup)
+	mine, err := mineMgr.CreateMine(cfg.AWS.ImageId, cfg.AWS.Key.Name, cfg.AWS.SecurityGroup)
 	if err != nil {
 		log.Fatal("error creating mine", err)
 	}
 
-	log.Printf("New mine. Id:%s IP:%s (vm:%s, ssh:notrunning). (wait 5 sec)", mine.Id, mine.PublicIpAddress, mine.State)
+	log.Printf("New mine. Id:%s IP:%s (vm:%s, ssh:notrunning).", mine.Id, mine.PublicIpAddress, mine.State)
 
 	for !mine.IsReady() {
 		log.Printf("Mine not ready. Id:%s IP:%s (vm:%s, ssh:notrunning). (wait 5 sec)", mine.Id, mine.PublicIpAddress, mine.State)
@@ -97,7 +122,11 @@ func createMineCmd(cfg config.Config) {
 	}
 	log.Println("Setting up mine")
 
-	err = mine.Setup()
+	setupFiles := strings.Split(cfg.Mine.SetupFiles, " ")
+	setupCmds := strings.Split(cfg.Mine.SetupCmds, " ")
+	err = mine.Setup(
+		cfg.Mine.SetupDirPath, setupFiles, setupCmds,
+		cfg.Mine.BackupDirPath, cfg.Mine.LatestDataFileName, cfg.Mine.DataDirPath)
 	if err != nil {
 		log.Fatal("error setup mine ", err)
 	}
@@ -125,8 +154,21 @@ func stopMineCmd(cfg config.Config) {
 	}
 
 	mine := mines[0]
+
+	log.Println("Players minecraft server")
+	err = mine.Players()
+	if err != nil {
+		log.Println("Warning. Can't fetch list of players. Minecraft Server running?")
+	}
+
+	log.Println("Stopping minecraft server")
+	err = mine.Save()
+	if err != nil {
+		log.Println("Warning. Can't save current state Minecraft Server running?", err.Error())
+	}
+
 	log.Println("Backup mine")
-	err = mine.Backup()
+	err = mine.Backup(cfg.Mine.DataDirPath, cfg.Mine.BackupDirPath, cfg.Mine.BackupFileFormat, cfg.Mine.LatestDataFileName)
 	if err != nil {
 		log.Fatal("Error during mine backup", err.Error())
 	}
@@ -150,5 +192,6 @@ func getMineManager(cfg config.Config) (mine.MineManager, error) {
 		log.Fatal("cloud error", err.Error())
 	}
 
-	return mine.NewManager(awsCloud, cfg.AWSSSHUser, cfg.AWSSSSPort, cfg.AWSKeyPath, cfg.AWSElasticIPID, cfg.AWSElasticIPKeeperID)
+	awsCfg := cfg.AWS
+	return mine.NewManager(awsCloud, awsCfg.SSH.User, awsCfg.SSH.Port, awsCfg.Key.Path, awsCfg.ElasticIP.AllocID, awsCfg.ElasticIP.ReleaseToNetInterfaceID)
 }
