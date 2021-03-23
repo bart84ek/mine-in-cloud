@@ -129,7 +129,7 @@ func (m *Mine) Backup(dataPath string, backupDirPath string, backupFileFmt strin
 		return err
 	}
 
-	cmd := exec.Command("ln", "-sF", backupFileName, latestDataFileName)
+	cmd := exec.Command("ln", "-fs", backupFileName, latestDataFileName)
 	cmd.Dir = backupDirPath
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
